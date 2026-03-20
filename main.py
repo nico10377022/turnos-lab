@@ -19,55 +19,81 @@ app.add_middleware(
 )
 
 # =========================
-# BASE DE DATOS (LOCAL + PRODUCCIÓN)
+# BASE DE DATOS
 # =========================
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///turnos.db")
 
-# fix Render (postgres:// → postgresql://)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
-# conexión según tipo
 if DATABASE_URL.startswith("postgresql"):
     engine = create_engine(
         DATABASE_URL,
         connect_args={"sslmode": "require"}
     )
+    es_postgres = True
 else:
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False}
     )
+    es_postgres = False
 
 # =========================
 # CREAR TABLAS
 # =========================
 with engine.begin() as conn:
-    
-    conn.execute(text("""
-    CREATE TABLE IF NOT EXISTS equipos (
-        id SERIAL PRIMARY KEY,
-        nombre TEXT UNIQUE
-    )
-    """))
 
-    conn.execute(text("""
-    CREATE TABLE IF NOT EXISTS turnos (
-        id SERIAL PRIMARY KEY,
-        equipo_id INT,
-        inicio TEXT,
-        fin TEXT,
-        usuario TEXT
-    )
-    """))
+    if es_postgres:
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS equipos (
+            id SERIAL PRIMARY KEY,
+            nombre TEXT UNIQUE
+        )
+        """))
 
-    conn.execute(text("""
-    INSERT INTO equipos (id, nombre) VALUES
-    (1, 'GC-FID'),
-    (2, 'FAAS'),
-    (3, 'Liofilizador')
-    ON CONFLICT DO NOTHING
-    """))
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS turnos (
+            id SERIAL PRIMARY KEY,
+            equipo_id INT,
+            inicio TEXT,
+            fin TEXT,
+            usuario TEXT
+        )
+        """))
+
+        conn.execute(text("""
+        INSERT INTO equipos (id, nombre) VALUES
+        (1, 'GC-FID'),
+        (2, 'FAAS'),
+        (3, 'Liofilizador')
+        ON CONFLICT DO NOTHING
+        """))
+
+    else:
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS equipos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE
+        )
+        """))
+
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS turnos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipo_id INT,
+            inicio TEXT,
+            fin TEXT,
+            usuario TEXT
+        )
+        """))
+
+        conn.execute(text("""
+        INSERT OR IGNORE INTO equipos (id, nombre) VALUES
+        (1, 'GC-FID'),
+        (2, 'FAAS'),
+        (3, 'Liofilizador')
+        """))
 
 # =========================
 # LIMPIEZA AUTOMÁTICA
@@ -75,11 +101,19 @@ with engine.begin() as conn:
 def limpiar_turnos_vencidos():
     limite = datetime.now() - timedelta(days=2)
 
-    with engine.begin() as conn:
-        conn.execute(text("""
+    if es_postgres:
+        query = """
         DELETE FROM turnos
         WHERE fin::timestamp < :limite
-        """), {"limite": limite.isoformat()})
+        """
+    else:
+        query = """
+        DELETE FROM turnos
+        WHERE datetime(fin) < :limite
+        """
+
+    with engine.begin() as conn:
+        conn.execute(text(query), {"limite": limite.isoformat()})
 
 # =========================
 # ROOT
@@ -109,21 +143,31 @@ def crear_turno(equipo_id: int, inicio: str, fin: str, usuario: str):
     if fin_dt <= inicio_dt:
         raise HTTPException(status_code=400, detail="Horario inválido")
 
-    with engine.begin() as conn:
-
-        conflicto = conn.execute(text("""
+    if es_postgres:
+        query_conflicto = """
+        SELECT * FROM turnos
+        WHERE equipo_id = :equipo_id
+        AND inicio::timestamp < :fin
+        AND fin::timestamp > :inicio
+        """
+    else:
+        query_conflicto = """
         SELECT * FROM turnos
         WHERE equipo_id = :equipo_id
         AND inicio < :fin
         AND fin > :inicio
-        """), {
+        """
+
+    with engine.begin() as conn:
+
+        conflicto = conn.execute(text(query_conflicto), {
             "equipo_id": equipo_id,
             "inicio": inicio,
             "fin": fin
         }).fetchone()
 
         if conflicto:
-            raise HTTPException(status_code=400, detail="Equipo ocupado")
+            raise HTTPException(status_code=400, detail="Equipo ocupado en ese horario")
 
         conn.execute(text("""
         INSERT INTO turnos (equipo_id, inicio, fin, usuario)
