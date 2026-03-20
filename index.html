@@ -64,7 +64,7 @@
 
 <script>
 
-// API (mismo servidor en producción)
+// API (misma URL en producción)
 const API = "";
 
 // nombres de equipos
@@ -122,10 +122,14 @@ async function verTurnos() {
         lista.innerHTML = "";
 
         data.forEach(t => {
+
+            const inicio = new Date(t.inicio).toLocaleString();
+            const fin = new Date(t.fin).toLocaleString();
+
             const li = document.createElement("li");
 
             li.innerHTML = `
-                [${nombres[equipo_id]}] ${t.inicio} → ${t.fin} (${t.usuario})
+                [${nombres[equipo_id]}] ${inicio} → ${fin} (${t.usuario})
                 <button onclick="eliminarTurno(${t.id})">❌</button>
             `;
 
@@ -192,7 +196,11 @@ async function verTurnosHoy() {
     hoyDiv.innerHTML = "<b>⚠ Turnos hoy:</b><br>";
 
     hoyTurnos.forEach(t => {
-        hoyDiv.innerHTML += `<b>${t.equipo_nombre}</b> → ${t.inicio} - ${t.fin} (${t.usuario})<br>`;
+
+        const inicio = new Date(t.inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const fin = new Date(t.fin).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        hoyDiv.innerHTML += `<b>${t.equipo_nombre}</b> → ${inicio} - ${fin} (${t.usuario})<br>`;
     });
 }
 
