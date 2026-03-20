@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Turnos Laboratorio</title>
+</head>
+<body>
+
+<h2>Reservar turno</h2>
+
+<label>Equipo:</label>
+<select id="equipo">
+    <option value="1">GC-FID</option>
+    <option value="2">FAAS</option>
+    <option value="3">Liofilizador</option>
+</select>
+
+<br><br>
+
+<label>Inicio:</label>
+<input type="datetime-local" id="inicio">
+
+<br><br>
+
+<label>Fin:</label>
+<input type="datetime-local" id="fin">
+
+<br><br>
+
+<label>Usuario:</label>
+<input type="text" id="usuario">
+
+<br><br>
+
+<button onclick="crearTurno()">Reservar</button>
+
+<p id="resultado"></p>
+
+<hr>
+
+<h2>Ver turnos</h2>
+
+<label>Equipo:</label>
+<select id="equipo_ver" onchange="verTurnos()">
+    <option value="1">GC-FID</option>
+    <option value="2">FAAS</option>
+    <option value="3">Liofilizador</option>
+</select>
+
+<ul id="lista"></ul>
+
+<script>
+const API = "http://192.168.244.86:8000";
+
+// =========================
+// CREAR TURNO
+// =========================
+async function crearTurno() {
+    const equipo_id = document.getElementById("equipo").value;
+
+    // FIX: agregar segundos
+    const inicio = document.getElementById("inicio").value + ":00";
+    const fin = document.getElementById("fin").value + ":00";
+
+    const usuario = document.getElementById("usuario").value;
+
+    if (!inicio || !fin || !usuario) {
+        alert("Completar todos los campos");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/turno?equipo_id=${equipo_id}&inicio=${inicio}&fin=${fin}&usuario=${usuario}`, {
+            method: "POST"
+        });
+
+        const data = await res.json();
+
+        document.getElementById("resultado").innerText = JSON.stringify(data);
+
+        // limpiar formulario
+        document.getElementById("inicio").value = "";
+        document.getElementById("fin").value = "";
+        document.getElementById("usuario").value = "";
+
+        verTurnos();
+
+    } catch (error) {
+        document.getElementById("resultado").innerText = "Error conexión";
+        console.error(error);
+    }
+}
+
+// =========================
+// VER TURNOS
+// =========================
+async function verTurnos() {
+    const equipo_id = document.getElementById("equipo_ver").value;
+
+    try {
+        const res = await fetch(`${API}/turnos/${equipo_id}`);
+        const data = await res.json();
+
+        const lista = document.getElementById("lista");
+        lista.innerHTML = "";
+
+        data.forEach(t => {
+            const li = document.createElement("li");
+
+            li.innerHTML = `
+                ${t.inicio} → ${t.fin} (${t.usuario})
+                <button onclick="eliminarTurno(${t.id})">❌</button>
+            `;
+
+            lista.appendChild(li);
+        });
+
+    } catch (error) {
+        console.error("Error cargando turnos", error);
+    }
+}
+
+// =========================
+// ELIMINAR TURNO
+// =========================
+async function eliminarTurno(id) {
+    if (!confirm("¿Eliminar turno?")) return;
+
+    await fetch(`${API}/turno/${id}`, {
+        method: "DELETE"
+    });
+
+    verTurnos();
+}
+
+// =========================
+// AUTO REFRESCO
+// =========================
+setInterval(verTurnos, 5000);
+
+// cargar al inicio
+verTurnos();
+
+</script>
+
+</body>
+</html>

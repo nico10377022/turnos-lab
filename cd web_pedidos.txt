@@ -1,0 +1,9 @@
+cd web_pedidos
+
+
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+http://192.168.244.86:8000/app
+
+
+crtl + c  borrar
