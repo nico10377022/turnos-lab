@@ -5,6 +5,17 @@
 </head>
 <body>
 
+<!-- ========================= -->
+<!-- TURNOS DE HOY -->
+<!-- ========================= -->
+<h2>Turnos de hoy</h2>
+<div id="hoy" style="border:2px solid red; padding:10px; margin-bottom:20px;">
+    Cargando...
+</div>
+
+<!-- ========================= -->
+<!-- RESERVAR -->
+<!-- ========================= -->
 <h2>Reservar turno</h2>
 
 <label>Equipo:</label>
@@ -37,6 +48,9 @@
 
 <hr>
 
+<!-- ========================= -->
+<!-- VER TURNOS -->
+<!-- ========================= -->
 <h2>Ver turnos</h2>
 
 <label>Equipo:</label>
@@ -50,7 +64,7 @@
 
 <script>
 
-// 👉 CLAVE: vacío para producción
+// API local/producción (auto)
 const API = "";
 
 // =========================
@@ -73,19 +87,18 @@ async function crearTurno() {
         });
 
         const data = await res.json();
-
         document.getElementById("resultado").innerText = JSON.stringify(data);
 
-        // limpiar formulario
+        // limpiar
         document.getElementById("inicio").value = "";
         document.getElementById("fin").value = "";
         document.getElementById("usuario").value = "";
 
         verTurnos();
+        verTurnosHoy();
 
     } catch (error) {
         document.getElementById("resultado").innerText = "Error conexión";
-        console.error(error);
     }
 }
 
@@ -114,7 +127,7 @@ async function verTurnos() {
         });
 
     } catch (error) {
-        console.error("Error cargando turnos", error);
+        console.error(error);
     }
 }
 
@@ -129,15 +142,58 @@ async function eliminarTurno(id) {
     });
 
     verTurnos();
+    verTurnosHoy();
+}
+
+// =========================
+// TURNOS DE HOY
+// =========================
+function esHoy(fechaStr) {
+    const fecha = new Date(fechaStr);
+    const hoy = new Date();
+
+    return (
+        fecha.getFullYear() === hoy.getFullYear() &&
+        fecha.getMonth() === hoy.getMonth() &&
+        fecha.getDate() === hoy.getDate()
+    );
+}
+
+async function verTurnosHoy() {
+    let todos = [];
+
+    for (let i = 1; i <= 3; i++) {
+        const res = await fetch(`${API}/turnos/${i}`);
+        const data = await res.json();
+        todos = todos.concat(data);
+    }
+
+    const hoyDiv = document.getElementById("hoy");
+    const hoyTurnos = todos.filter(t => esHoy(t.inicio));
+
+    if (hoyTurnos.length === 0) {
+        hoyDiv.innerHTML = "✔ No hay turnos hoy";
+        hoyDiv.style.borderColor = "green";
+        return;
+    }
+
+    hoyDiv.style.borderColor = "red";
+    hoyDiv.innerHTML = "<b>⚠ Turnos hoy:</b><br>";
+
+    hoyTurnos.forEach(t => {
+        hoyDiv.innerHTML += `${t.inicio} → ${t.fin} (${t.usuario})<br>`;
+    });
 }
 
 // =========================
 // AUTO REFRESH
 // =========================
 setInterval(verTurnos, 5000);
+setInterval(verTurnosHoy, 60000);
 
 // cargar al inicio
 verTurnos();
+verTurnosHoy();
 
 </script>
 
