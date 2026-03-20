@@ -78,7 +78,7 @@ def limpiar_turnos_vencidos():
     with engine.begin() as conn:
         conn.execute(text("""
         DELETE FROM turnos
-        WHERE datetime(fin) < :limite
+        WHERE fin::timestamp < :limite
         """), {"limite": limite.isoformat()})
 
 # =========================
