@@ -64,8 +64,15 @@
 
 <script>
 
-// API local/producción (auto)
+// API (mismo servidor en producción)
 const API = "";
+
+// nombres de equipos
+const nombres = {
+    1: "GC-FID",
+    2: "FAAS",
+    3: "Liofilizador"
+};
 
 // =========================
 // CREAR TURNO
@@ -89,7 +96,6 @@ async function crearTurno() {
         const data = await res.json();
         document.getElementById("resultado").innerText = JSON.stringify(data);
 
-        // limpiar
         document.getElementById("inicio").value = "";
         document.getElementById("fin").value = "";
         document.getElementById("usuario").value = "";
@@ -119,7 +125,7 @@ async function verTurnos() {
             const li = document.createElement("li");
 
             li.innerHTML = `
-                ${t.inicio} → ${t.fin} (${t.usuario})
+                [${nombres[equipo_id]}] ${t.inicio} → ${t.fin} (${t.usuario})
                 <button onclick="eliminarTurno(${t.id})">❌</button>
             `;
 
@@ -165,6 +171,11 @@ async function verTurnosHoy() {
     for (let i = 1; i <= 3; i++) {
         const res = await fetch(`${API}/turnos/${i}`);
         const data = await res.json();
+
+        data.forEach(t => {
+            t.equipo_nombre = nombres[i];
+        });
+
         todos = todos.concat(data);
     }
 
@@ -181,7 +192,7 @@ async function verTurnosHoy() {
     hoyDiv.innerHTML = "<b>⚠ Turnos hoy:</b><br>";
 
     hoyTurnos.forEach(t => {
-        hoyDiv.innerHTML += `${t.inicio} → ${t.fin} (${t.usuario})<br>`;
+        hoyDiv.innerHTML += `<b>${t.equipo_nombre}</b> → ${t.inicio} - ${t.fin} (${t.usuario})<br>`;
     });
 }
 
