@@ -14,6 +14,14 @@
 </div>
 
 <!-- ========================= -->
+<!-- TURNOS DE MAÑANA -->
+<!-- ========================= -->
+<h2>Turnos de mañana</h2>
+<div id="manana" style="border:2px solid orange; padding:10px; margin-bottom:20px;">
+    Cargando...
+</div>
+
+<!-- ========================= -->
 <!-- RESERVAR -->
 <!-- ========================= -->
 <h2>Reservar turno</h2>
@@ -64,7 +72,7 @@
 
 <script>
 
-// API (misma URL en producción)
+// API (misma URL)
 const API = "";
 
 // nombres de equipos
@@ -102,6 +110,7 @@ async function crearTurno() {
 
         verTurnos();
         verTurnosHoy();
+        verTurnosManana();
 
     } catch (error) {
         document.getElementById("resultado").innerText = "Error conexión";
@@ -153,10 +162,11 @@ async function eliminarTurno(id) {
 
     verTurnos();
     verTurnosHoy();
+    verTurnosManana();
 }
 
 // =========================
-// TURNOS DE HOY
+// FUNCIONES DE FECHA
 // =========================
 function esHoy(fechaStr) {
     const fecha = new Date(fechaStr);
@@ -169,6 +179,21 @@ function esHoy(fechaStr) {
     );
 }
 
+function esManana(fechaStr) {
+    const fecha = new Date(fechaStr);
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+
+    return (
+        fecha.getFullYear() === manana.getFullYear() &&
+        fecha.getMonth() === manana.getMonth() &&
+        fecha.getDate() === manana.getDate()
+    );
+}
+
+// =========================
+// TURNOS DE HOY
+// =========================
 async function verTurnosHoy() {
     let todos = [];
 
@@ -205,14 +230,54 @@ async function verTurnosHoy() {
 }
 
 // =========================
+// TURNOS DE MAÑANA
+// =========================
+async function verTurnosManana() {
+    let todos = [];
+
+    for (let i = 1; i <= 3; i++) {
+        const res = await fetch(`${API}/turnos/${i}`);
+        const data = await res.json();
+
+        data.forEach(t => {
+            t.equipo_nombre = nombres[i];
+        });
+
+        todos = todos.concat(data);
+    }
+
+    const mananaDiv = document.getElementById("manana");
+    const mananaTurnos = todos.filter(t => esManana(t.inicio));
+
+    if (mananaTurnos.length === 0) {
+        mananaDiv.innerHTML = "✔ No hay turnos mañana";
+        mananaDiv.style.borderColor = "green";
+        return;
+    }
+
+    mananaDiv.style.borderColor = "orange";
+    mananaDiv.innerHTML = "<b>📅 Turnos mañana:</b><br>";
+
+    mananaTurnos.forEach(t => {
+
+        const inicio = new Date(t.inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const fin = new Date(t.fin).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        mananaDiv.innerHTML += `<b>${t.equipo_nombre}</b> → ${inicio} - ${fin} (${t.usuario})<br>`;
+    });
+}
+
+// =========================
 // AUTO REFRESH
 // =========================
 setInterval(verTurnos, 5000);
 setInterval(verTurnosHoy, 60000);
+setInterval(verTurnosManana, 60000);
 
 // cargar al inicio
 verTurnos();
 verTurnosHoy();
+verTurnosManana();
 
 </script>
 
